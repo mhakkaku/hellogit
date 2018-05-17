@@ -1,0 +1,94 @@
+---
+title: "Regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+重回帰分析
+
+```{r}
+d <- read.csv("reg.data.csv", fileEncoding="cp932")
+head(d)
+str(d)
+```
+
+離職衝動に対しての相関が高い変数を考える。
+
+```{r}
+cors1 <- NULL
+for(i in 2:21){
+  cors1[i] <- cor(d[,55], d[,i])
+}
+
+cors2 <- NULL
+for(i in 23:129){
+  cors2[i] <- cor(d[,55], d[,i])
+}
+
+
+cors1 > 0.2
+cors2 > 0.2
+```
+#31,45,46,47,48,52,54,55は相関が高そう
+
+
+```{r}
+LM  <- lm(d[,55] ~ d[,31] + d[,45] + d[,46] + d[,47]
+          + d[,48] + d[,52] + d[,54], data=d)
+
+summary(LM)
+
+#離職と疲労
+plot(d[,55] ~ jitter(d[,47]))
+cor(d[,55], d[,47])
+
+library(rpart)
+library(partykit)
+
+par(family="Osaka")
+tree <- rpart(d[,55] ~ ., data=d[,c(-1,-2,-22,-55)], cp=0.01)
+plot(tree)
+text(tree, cex=0.5)
+
+```
+
+決定木で出てきたのは、規範,行動意図, 疲労感,量的ストレッサ,職場満足
+
+整形したデータ
+```{r}
+d2 <- read.csv("seikeizumi.csv",fileEncoding="cp932")
+head(d2)
+str(d2)
+
+d2$職業 <- as.factor(d2$職業)
+d2$アルバイト種類 <- as.factor(d2$アルバイト種類)
+d2$性別 <- as.factor(d2$性別)
+d2$都道府県 <- as.factor(d2$都道府県)
+d2$職業 <- as.factor(d2$職業)
+
+str(d2)
+
+LM2 <- lm(離職衝動 ~ ., data=d2[,-1])
+summary(LM2)
+
+library(MASS)
+LM.aic <- stepAIC(LM2)
+summary(LM.aic)
+
+par(mfrow=c(2,2))
+plot(LM.aic)
+```
+
+HADmodel
+```{r}
+LM3 <- lm(離職衝動 ~ SMM + Grit + セルフコントロール_弱さ + 人間観
+              + 知能観 + 規範 + 瞬間の楽しさ + 行動意図 + 疲労感
+               + 職場満足 + アルバイト先でのポジション + 道具性
+               + シフトの融通の利きやすさ + 質的ストレッサ + 対人関係
+              + 早朝 + 外的調整因子, data=d2[,-1])
+
+summary(LM3)
+```
