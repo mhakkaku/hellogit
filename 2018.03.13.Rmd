@@ -1,0 +1,98 @@
+---
+title: "2018.3.13回帰分析"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+求人の離職行動について分析したい。
+重回帰分析
+
+```{r}
+d <- read.csv("seikeizumi.csv", fileEncoding="cp932")
+head(d)
+
+d$職業 <- as.factor(d$職業)
+d$アルバイト種類 <- as.factor(d$アルバイト種類)
+d$性別 <- as.factor(d$性別)
+d$都道府県 <- as.factor(d$都道府県)
+d$職業 <- as.factor(d$職業)
+
+d1 <- subset(d, d$求人倍率 > 1.5)
+d2 <- subset(d, d$求人倍率 <= 1.5)
+
+par(family="Osaka")
+hist(d1$離職衝動)
+hist(d2$離職衝動)
+
+summary(d1)
+summary(d2)
+
+str(d1)
+str(d2)
+```
+
+
+HADmodelの検証
+```{r}
+LM.HAD1 <- lm(離職衝動 ~ SMM + Grit + セルフコントロール_弱さ + 人間観
+              + 知能観 + 規範 + 瞬間の楽しさ + 行動意図 + 疲労感
+               + 職場満足 + アルバイト先でのポジション + 道具性
+               + シフトの融通の利きやすさ + 質的ストレッサ + 対人関係
+              + 早朝 + 外的調整因子, data=d1[,-1])
+
+LM.HAD2 <- lm(離職衝動 ~ SMM + Grit + セルフコントロール_弱さ + 人間観
+              + 知能観 + 規範 + 瞬間の楽しさ + 行動意図 + 疲労感
+               + 職場満足 + アルバイト先でのポジション + 道具性
+               + シフトの融通の利きやすさ + 質的ストレッサ + 対人関係
+              + 早朝 + 外的調整因子, data=d2[,-1])
+
+summary(LM.HAD1)
+summary(LM.HAD2)
+```
+
+AICによるモデル
+```{r}
+LM.All1 <- lm(離職衝動 ~ ., data=d1[,-1])
+LM.All2 <- lm(離職衝動 ~ ., data=d2[,-1])
+
+summary(LM.All1)
+summary(LM.All2)
+
+library(MASS)
+LM.AIC1 <- stepAIC(LM.All1)
+LM.AIC2 <- stepAIC(LM.All2)
+
+summary(LM.AIC1)
+summary(LM.AIC2)
+```
+
+総当たり
+```{r}
+#install.packages("leaps")
+library(leaps) # このライブラリは標準ではない．
+rg <- regsubsets(離職衝動~SMM + Grit + セルフコントロール_弱さ + 人間観
+              + 知能観 + 規範 + 瞬間の楽しさ + 行動意図 + 疲労感
+               + 職場満足 + アルバイト先でのポジション + 道具性
+               + シフトの融通の利きやすさ + 質的ストレッサ + 対人関係
+              + 早朝 + 外的調整因子,data=d[,-1],nvmax=10) # nvmax は説明変数の個数の最大値
+srg <- summary(rg) # 結果を整理
+srg$which
+
+n <- nrow(d[,-1])
+p <- nrow(srg$which)
+
+aicrg <- 2*(n/2)*(1+log(2*pi*srg$rss/n)) + 2*(2 + (1:p)) # AIC 値の計算
+aicrg 
+order(aicrg)
+```
+
+Lasso回帰
+なんかうまく動かない　matrixでないからかも
+
+```{r}
+#install.packages("glmnet")
+library(glmnet)
+```
